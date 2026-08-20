@@ -11,14 +11,15 @@ import { FormEvent, useState } from 'react';
 import toast from 'react-hot-toast';
 
 import { motion } from 'framer-motion';
+import { useForgotEmailMutation } from '@/features/auth/authApi';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState<string>('');
-  const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [errors, setErrors] = useState<{ email?: string }>({});
 
   const router = useRouter();
+  const [forgotEmail, { isLoading }] = useForgotEmailMutation();
 
   const validate = () => {
     const newErrors: { email?: string } = {};
@@ -40,19 +41,21 @@ export default function ForgotPasswordPage() {
       return;
     }
 
-    setIsLoading(true);
+    try {
+      const res = await forgotEmail({ email }).unwrap();
+      if (res?.success) {
+        setIsSuccess(true);
+        toast.success(res?.message || 'Please check your email. We have sent you a one-time passcode (OTP).');
 
-    // Simulate API delay
-    setTimeout(() => {
-      setIsLoading(false);
-      setIsSuccess(true);
-      toast.success('Reset link sent successfully!');
-
-      // Optional: Redirect after success or just show success state
-      setTimeout(() => {
-        router.push(`/auth/verify-email?email=${encodeURIComponent(email)}`);
-      }, 1500);
-    }, 1500);
+        setTimeout(() => {
+          router.push(`/auth/verify-email?email=${encodeURIComponent(email)}`);
+        }, 1000);
+      } else {
+        toast.error(res?.message || 'Failed to send OTP code.');
+      }
+    } catch (error: any) {
+      toast.error(error?.data?.message || error?.message || 'Something went wrong.');
+    }
   };
 
   return (

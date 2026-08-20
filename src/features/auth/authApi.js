@@ -1,6 +1,5 @@
 import { baseApi } from "../../utils/apiBaseQuery";
 
-
 export const authApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     // Login
@@ -12,52 +11,51 @@ export const authApi = baseApi.injectEndpoints({
       }),
     }),
 
+    // Forgot Password
     forgotEmail: builder.mutation({
-      query: (forgotEmail) => ({
-        url: "/auth/forgot-password-otp",
+      query: (data) => ({
+        url: "/auth/forget-password",
         method: "POST",
-        body: forgotEmail,
+        body: typeof data === "string" ? { email: data } : data,
       }),
     }),
 
+    // Verify OTP
     forgotEmailOTPCheck: builder.mutation({
-      query: ({ otp, token }) => ({
-        url: "/auth/forgot-password-otp-match",
-        method: "PATCH",
-        headers: {
-          token: token,
-          "Content-Type": "application/json"
+      query: (data) => ({
+        url: "/auth/verify-email",
+        method: "POST",
+        body: {
+          email: data.email,
+          oneTimeCode: Number(data.oneTimeCode),
         },
-        body: { otp },  // <-- must be an object
       }),
     }),
 
+    // Resend OTP
     resendPassword: builder.mutation({
-      query: (token) => ({
-        url: "/otp/resend-otp",
-        method: "PATCH",
-        headers: {
-          token: token,
-          "Content-Type": "application/json"
-        },
+      query: (data) => ({
+        url: "/auth/generate-otp",
+        method: "POST",
+        body: typeof data === "string" ? { email: data } : data,
       }),
     }),
 
+    // Reset Password
     resetPassword: builder.mutation({
       query: ({ token, newPassword, confirmPassword }) => ({
-        url: "/auth/forgot-password-reset",
-        method: "PATCH",
+        url: "/auth/reset-password",
+        method: "POST",
         headers: {
-          token: `${token}`,
-          "Content-Type": "application/json"
+          Authorization: `${token}`,
+          "Content-Type": "application/json",
         },
         body: {
-          newPassword: newPassword,
-          confirmPassword: confirmPassword,
+          newPassword,
+          confirmPassword,
         },
       }),
     }),
-
   }),
 });
 
@@ -67,5 +65,6 @@ export const {
   useForgotEmailMutation,
   useForgotEmailOTPCheckMutation,
   useResetPasswordMutation,
-  useResendPasswordMutation
+  useResendPasswordMutation,
 } = authApi;
+

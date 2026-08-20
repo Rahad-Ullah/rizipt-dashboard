@@ -1,12 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Edit3, ArrowLeft, X, Save } from "lucide-react";
+import { Edit3, ArrowLeft, X, Save, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import TiptapEditor from "@/components/content-management/TiptapEditor";
+import {
+  useGetSettingsQuery,
+  useCreateSettingsMutation,
+} from "@/features/settings/settingsApi";
 
 interface LegalManagementPageProps {
+  typeKey: "terms_of_service" | "privacy_policy" | "about_us";
   title: string;
   displayTitle: string;
   initialContent: string;
@@ -14,20 +19,53 @@ interface LegalManagementPageProps {
 }
 
 export default function LegalManagementPage({
+  typeKey,
   title,
   displayTitle,
   initialContent,
   subtitle,
 }: LegalManagementPageProps) {
   const router = useRouter();
-  const [content, setContent] = useState(initialContent);
-  const [tempContent, setTempContent] = useState(initialContent);
+
+  // RTK Query Hooks
+  const { data: settingRes, isLoading, isFetching } = useGetSettingsQuery(typeKey);
+  const [createSettings, { isLoading: isSaving }] = useCreateSettingsMutation();
+
+  const activeContent = settingRes?.data?.content || initialContent;
+  const [tempContent, setTempContent] = useState(activeContent);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const handleSave = () => {
-    setContent(tempContent);
-    setIsModalOpen(false);
+  // Sync tempContent when activeContent changes
+  useEffect(() => {
+    if (settingRes?.data?.content) {
+      setTempContent(settingRes.data.content);
+    }
+  }, [settingRes]);
+
+  const handleOpenEditModal = () => {
+    setTempContent(activeContent);
+    setIsModalOpen(true);
   };
+
+  const handleSave = async () => {
+    try {
+      await createSettings({
+        type: typeKey,
+        content: tempContent,
+      }).unwrap();
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error("Failed to save legal document:", error);
+    }
+  };
+
+  const lastUpdated = settingRes?.data?.updatedAt
+    ? `Last updated: ${new Date(settingRes.data.updatedAt).toLocaleDateString("en-US", {
+        month: "short",
+        day: "2-digit",
+        year: "numeric",
+      })}`
+    : subtitle;
 
   return (
     <div className="w-full py-6 pb-10">
@@ -43,14 +81,11 @@ export default function LegalManagementPage({
             </button>
             <div>
               <h1 className="text-[26px] font-extrabold text-[#111827] leading-tight">{title}</h1>
-              <p className="text-[13px] text-gray-400 font-medium">{subtitle}</p>
+              <p className="text-[13px] text-gray-400 font-medium">{lastUpdated}</p>
             </div>
           </div>
           <button
-            onClick={() => {
-              setTempContent(content);
-              setIsModalOpen(true);
-            }}
+            onClick={handleOpenEditModal}
             className="flex items-center gap-2 px-5 py-2 bg-[#0094DA] text-white text-[13px] font-bold rounded-lg hover:bg-[#007BB5] transition-colors cursor-pointer shadow-sm shadow-[#0094DA]/20"
           >
             <Edit3 className="w-4 h-4" />
@@ -59,15 +94,24 @@ export default function LegalManagementPage({
         </div>
 
         {/* Display Section */}
-        <div className="w-full bg-white border border-gray-100 rounded-[24px] shadow-sm overflow-hidden">
+        <div className="w-full bg-white border border-gray-100 rounded-[24px] shadow-sm overflow-hidden relative min-h-[300px]">
+          {(isLoading || isFetching) && (
+            <div className="absolute inset-0 bg-white/60 backdrop-blur-xs flex items-center justify-center z-30 min-h-[250px]">
+              <div className="flex flex-col items-center gap-2">
+                <Loader2 className="w-8 h-8 text-[#0094DA] animate-spin" />
+                <p className="text-xs font-semibold text-gray-500">Loading document...</p>
+              </div>
+            </div>
+          )}
+
           <div className="bg-gray-50/50 px-6 py-4 border-b border-gray-100">
             <h2 className="text-[16px] font-bold text-gray-800">{displayTitle}</h2>
           </div>
           <div className="p-8">
-             <div 
-               className="prose prose-blue max-w-none text-gray-700 leading-relaxed"
-               dangerouslySetInnerHTML={{ __html: content }}
-             />
+            <div
+              className="prose prose-blue max-w-none text-gray-700 leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: activeContent }}
+            />
           </div>
         </div>
       </div>
@@ -80,14 +124,14 @@ export default function LegalManagementPage({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setIsModalOpen(false)}
+              onClick={() => !isSaving && setIsModalOpen(false)}
               className="absolute inset-0 bg-black/40 backdrop-blur-sm cursor-pointer"
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 16 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 16 }}
-              className="relative bg-white rounded-[24px] shadow-2xl w-full max-w-4xl border border-gray-100 flex flex-col overflow-hidden max-h-[90vh]"
+              className="relative bg-white rounded-[24px] shadow-2xl w-full max-w-4xl border border-gray-100 flex flex-col overflow-hidden max-h-[90vh] z-10"
             >
               {/* Modal Header */}
               <div className="flex items-center justify-between px-8 py-5 border-b border-gray-100 bg-gray-50/30">
@@ -96,8 +140,9 @@ export default function LegalManagementPage({
                   <p className="text-[12px] text-gray-400 font-medium">Update the content shown to users.</p>
                 </div>
                 <button
+                  disabled={isSaving}
                   onClick={() => setIsModalOpen(false)}
-                  className="w-9 h-9 rounded-full bg-white hover:bg-gray-100 border border-gray-100 flex items-center justify-center transition-colors cursor-pointer"
+                  className="w-9 h-9 rounded-full bg-white hover:bg-gray-100 border border-gray-100 flex items-center justify-center transition-colors cursor-pointer disabled:opacity-50"
                 >
                   <X className="w-4 h-4 text-gray-600" />
                 </button>
@@ -105,26 +150,34 @@ export default function LegalManagementPage({
 
               {/* Modal Editor Body */}
               <div className="p-8 overflow-y-auto">
-                <TiptapEditor 
-                  content={tempContent} 
-                  onChange={(newContent) => setTempContent(newContent)} 
+                <TiptapEditor
+                  content={tempContent}
+                  onChange={(newContent) => setTempContent(newContent)}
                 />
               </div>
 
               {/* Modal Actions */}
               <div className="px-8 py-5 border-t border-gray-100 bg-gray-50/30 flex justify-end gap-3">
                 <button
+                  disabled={isSaving}
                   onClick={() => setIsModalOpen(false)}
-                  className="px-6 py-2.5 rounded-xl bg-white border border-gray-200 text-gray-600 font-bold text-[14px] hover:bg-gray-100 transition-colors cursor-pointer"
+                  className="px-6 py-2.5 rounded-xl bg-white border border-gray-200 text-gray-600 font-bold text-[14px] hover:bg-gray-100 transition-colors cursor-pointer disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
+                  disabled={isSaving}
                   onClick={handleSave}
-                  className="px-8 py-2.5 rounded-xl bg-[#0094DA] text-white font-bold text-[14px] hover:bg-[#007BB5] transition-colors cursor-pointer shadow-lg shadow-[#0094DA]/20 flex items-center gap-2"
+                  className="px-8 py-2.5 rounded-xl bg-[#0094DA] text-white font-bold text-[14px] hover:bg-[#007BB5] transition-colors cursor-pointer shadow-lg shadow-[#0094DA]/20 flex items-center gap-2 disabled:opacity-50"
                 >
-                  <Save className="w-4 h-4" />
-                  Save Changes
+                  {isSaving ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      Save Changes
+                    </>
+                  )}
                 </button>
               </div>
             </motion.div>

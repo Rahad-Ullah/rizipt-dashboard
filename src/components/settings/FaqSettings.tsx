@@ -2,39 +2,41 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Search, Plus, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, Search, Plus, Trash2, Loader2, Edit3 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import {
+  useGetAllFaqQuery,
+  useCreateFaqMutation,
+  useUpdateFaqMutation,
+  useDeleteFaqMutation,
+} from "@/features/faq/faqApi";
 
 type FAQ = {
-  id: number;
+  _id: string;
   question: string;
   answer: string;
+  createdAt?: string;
+  updatedAt?: string;
 };
-
-const initialFaqs: FAQ[] = [
-  { id: 1, question: "How do I reset my password?", answer: "To reset your password, navigate to the login page and click on 'Forgot Password'. You will receive an email with reset instructions." },
-  { id: 2, question: "How do I reset my password?", answer: "To reset your password, navigate to the login page and click on 'Forgot Password'. You will receive an email with reset instructions." },
-  { id: 3, question: "How do I track my progress?", answer: "You can track your progress by visiting the 'Dashboard' section. It provides a comprehensive overview of your habit streaks, completion rates, and historical data to help you stay motivated." },
-  { id: 4, question: "How do I reset my password?", answer: "To reset your password, navigate to the login page and click on 'Forgot Password'. You will receive an email with reset instructions." },
-  { id: 5, question: "How do I reset my password?", answer: "To reset your password, navigate to the login page and click on 'Forgot Password'. You will receive an email with reset instructions." },
-  { id: 6, question: "How do I reset my password?", answer: "To reset your password, navigate to the login page and click on 'Forgot Password'. You will receive an email with reset instructions." },
-  { id: 7, question: "How do I reset my password?", answer: "To reset your password, navigate to the login page and click on 'Forgot Password'. You will receive an email with reset instructions." },
-  { id: 8, question: "How do I reset my password?", answer: "To reset your password, navigate to the login page and click on 'Forgot Password'. You will receive an email with reset instructions." },
-  { id: 9, question: "How do I reset my password?", answer: "To reset your password, navigate to the login page and click on 'Forgot Password'. You will receive an email with reset instructions." },
-];
 
 type ModalMode = "add" | "edit" | null;
 
 export default function FaqSettings() {
   const router = useRouter();
-  const [faqs, setFaqs] = useState<FAQ[]>(initialFaqs);
-  const [search, setSearch] = useState("");
   const [tableSearch, setTableSearch] = useState("");
   const [modalMode, setModalMode] = useState<ModalMode>(null);
   const [editingFaq, setEditingFaq] = useState<FAQ | null>(null);
   const [formQuestion, setFormQuestion] = useState("");
   const [formAnswer, setFormAnswer] = useState("");
-  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  // RTK Query Hooks
+  const { data: faqRes, isLoading, isFetching } = useGetAllFaqQuery(undefined);
+  const [createFaq, { isLoading: isCreating }] = useCreateFaqMutation();
+  const [updateFaq, { isLoading: isUpdating }] = useUpdateFaqMutation();
+  const [deleteFaq, { isLoading: isDeleting }] = useDeleteFaqMutation();
+
+  const faqs: FAQ[] = faqRes?.data ? [...faqRes.data].reverse() : [];
 
   const openAdd = () => {
     setFormQuestion("");
@@ -50,23 +52,42 @@ export default function FaqSettings() {
     setModalMode("edit");
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!formQuestion.trim() || !formAnswer.trim()) return;
-    if (modalMode === "add") {
-      setFaqs((prev) => [...prev, { id: Date.now(), question: formQuestion, answer: formAnswer }]);
-    } else if (modalMode === "edit" && editingFaq) {
-      setFaqs((prev) => prev.map((f) => f.id === editingFaq.id ? { ...f, question: formQuestion, answer: formAnswer } : f));
+
+    try {
+      if (modalMode === "add") {
+        await createFaq({
+          question: formQuestion.trim(),
+          answer: formAnswer.trim(),
+        }).unwrap();
+      } else if (modalMode === "edit" && editingFaq) {
+        await updateFaq({
+          id: editingFaq._id,
+          data: {
+            question: formQuestion.trim(),
+            answer: formAnswer.trim(),
+          },
+        }).unwrap();
+      }
+      setModalMode(null);
+    } catch (error) {
+      console.error("Failed to save FAQ:", error);
     }
-    setModalMode(null);
   };
 
-  const handleDelete = (id: number) => {
-    setFaqs((prev) => prev.filter((f) => f.id !== id));
-    setDeleteConfirmId(null);
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteFaq(id).unwrap();
+      setDeleteConfirmId(null);
+    } catch (error) {
+      console.error("Failed to delete FAQ:", error);
+    }
   };
 
   const filtered = faqs.filter((f) =>
-    f.question.toLowerCase().includes(tableSearch.toLowerCase())
+    f.question.toLowerCase().includes(tableSearch.toLowerCase()) ||
+    f.answer.toLowerCase().includes(tableSearch.toLowerCase())
   );
 
   return (
@@ -84,23 +105,20 @@ export default function FaqSettings() {
             </button>
             <h1 className="text-[26px] font-extrabold text-[#111827]">FAQ&apos;s Settings</h1>
           </div>
-          <p className="text-[13px] text-gray-400 font-medium ml-11">{faqs.length} faq&apos;s</p>
-        </div>
-
-        {/* Top Search */}
-        <div className="relative w-full flex items-center">
-          <Search className="absolute left-4 w-4 h-4 text-gray-400" strokeWidth={2.5} />
-          <input
-            type="text"
-            placeholder="Search here..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-11 pr-4 py-3 bg-white border border-gray-200/80 rounded-xl text-[13px] font-medium text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0094DA]/30 shadow-sm"
-          />
+          <p className="text-[13px] text-gray-400 font-medium ml-11">{faqs.length} faq&apos;s published</p>
         </div>
 
         {/* FAQ List Card */}
-        <div className="bg-white border border-gray-200/60 rounded-2xl overflow-hidden shadow-sm">
+        <div className="bg-white border border-gray-200/60 rounded-2xl overflow-hidden shadow-sm relative">
+          {(isLoading || isFetching) && (
+            <div className="absolute inset-0 bg-white/60 backdrop-blur-xs flex items-center justify-center z-30 min-h-[250px]">
+              <div className="flex flex-col items-center gap-2">
+                <Loader2 className="w-8 h-8 text-[#0094DA] animate-spin" />
+                <p className="text-xs font-semibold text-gray-500">Loading FAQs...</p>
+              </div>
+            </div>
+          )}
+
           {/* Card header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
             <h2 className="text-[16px] font-bold text-gray-900">FAQ List</h2>
@@ -131,50 +149,39 @@ export default function FaqSettings() {
           <div className="grid grid-cols-12 px-6 py-3 bg-gray-50 border-b border-gray-100 text-[11px] font-bold text-gray-500 uppercase tracking-wider">
             <div className="col-span-4">Question</div>
             <div className="col-span-6">Answer Snippet</div>
-            <div className="col-span-2">Action</div>
+            <div className="col-span-2 text-right">Action</div>
           </div>
 
           {/* Table Rows */}
           <div className="divide-y divide-gray-100">
+            {filtered.length === 0 && !isLoading && (
+              <div className="py-12 text-center text-gray-400 text-sm font-medium">
+                No FAQs found.
+              </div>
+            )}
+
             {filtered.map((faq) => (
-              <div key={faq.id} className="grid grid-cols-12 px-6 py-3.5 items-center hover:bg-gray-50/70 transition-colors">
-                <div className="col-span-4 text-[13px] text-gray-700 font-medium pr-4 truncate">{faq.question}</div>
+              <div key={faq._id} className="grid grid-cols-12 px-6 py-3.5 items-center hover:bg-gray-50/70 transition-colors">
+                <div className="col-span-4 text-[13px] text-gray-800 font-semibold pr-4 truncate">{faq.question}</div>
                 <div className="col-span-6 text-[13px] text-gray-500 font-medium pr-4 truncate">
-                  {faq.answer.slice(0, 45)}..
+                  {faq.answer}
                 </div>
-                <div className="col-span-2 flex items-center gap-3">
+                <div className="col-span-2 flex items-center justify-end gap-3">
                   <button
                     onClick={() => openEdit(faq)}
-                    className="text-[12px] font-bold text-[#D97706] hover:text-[#B45309] transition-colors cursor-pointer"
+                    className="text-[12px] font-bold text-[#D97706] hover:text-[#B45309] transition-colors cursor-pointer flex items-center gap-1"
                   >
-                    Edit
+                    <Edit3 className="w-3.5 h-3.5" /> Edit
                   </button>
                   <button
-                    onClick={() => setDeleteConfirmId(faq.id)}
-                    className="text-[12px] font-bold text-[#E11D48] hover:text-[#BE123C] transition-colors cursor-pointer"
+                    onClick={() => setDeleteConfirmId(faq._id)}
+                    className="text-[12px] font-bold text-[#E11D48] hover:text-[#BE123C] transition-colors cursor-pointer flex items-center gap-1"
                   >
-                    Delete
+                    <Trash2 className="w-3.5 h-3.5" /> Delete
                   </button>
                 </div>
               </div>
             ))}
-          </div>
-
-          {/* Pagination */}
-          <div className="px-4 sm:px-6 py-5 border-t border-gray-100 flex flex-wrap items-center justify-center gap-2">
-            <button className="px-3 py-1.5 rounded-lg bg-[#EAECEF] text-gray-600 text-[12px] font-bold hover:bg-gray-200 cursor-pointer transition-colors flex items-center gap-1">
-              <ChevronLeft className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Previous</span>
-            </button>
-            <div className="flex items-center gap-1.5">
-              <button className="w-8 h-8 rounded-lg text-[12px] font-bold cursor-pointer transition-colors bg-[#0094DA] text-white">1</button>
-              <button className="w-8 h-8 rounded-lg text-[12px] font-bold cursor-pointer transition-colors bg-[#EAECEF] text-gray-600 hover:bg-gray-200">2</button>
-              <button className="hidden sm:flex w-8 h-8 items-center justify-center rounded-lg text-[12px] font-bold cursor-pointer transition-colors bg-[#EAECEF] text-gray-600 hover:bg-gray-200">3</button>
-              <span className="text-gray-400 font-bold text-[12px] px-1">...</span>
-              <button className="w-8 h-8 rounded-lg bg-[#EAECEF] text-gray-600 text-[12px] font-bold cursor-pointer hover:bg-gray-200">25</button>
-            </div>
-            <button className="px-3 py-1.5 rounded-lg bg-[#0094DA] text-white text-[12px] font-bold cursor-pointer hover:bg-[#007BB5] transition-colors flex items-center gap-1">
-              <span className="hidden sm:inline">Next</span> <ChevronRight className="w-3.5 h-3.5" />
-            </button>
           </div>
         </div>
       </div>
@@ -187,14 +194,14 @@ export default function FaqSettings() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setModalMode(null)}
+              onClick={() => !isCreating && !isUpdating && setModalMode(null)}
               className="absolute inset-0 bg-black/30 backdrop-blur-sm cursor-pointer"
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 16 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 16 }}
-              className="relative bg-white rounded-[20px] shadow-2xl w-full max-w-lg border border-gray-100 p-8"
+              className="relative bg-white rounded-[20px] shadow-2xl w-full max-w-lg border border-gray-100 p-8 z-10"
             >
               {/* Header */}
               <div className="text-center mb-6">
@@ -231,16 +238,24 @@ export default function FaqSettings() {
               {/* Actions */}
               <div className="flex gap-3 mt-6">
                 <button
+                  disabled={isCreating || isUpdating}
                   onClick={() => setModalMode(null)}
-                  className="flex-1 py-3 rounded-xl bg-[#EAECEF] text-gray-700 font-bold text-[14px] hover:bg-gray-200 transition-colors cursor-pointer"
+                  className="flex-1 py-3 rounded-xl bg-[#EAECEF] text-gray-700 font-bold text-[14px] hover:bg-gray-200 transition-colors cursor-pointer disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
+                  disabled={isCreating || isUpdating || !formQuestion.trim() || !formAnswer.trim()}
                   onClick={handleSubmit}
-                  className="flex-1 py-3 rounded-xl bg-[#0094DA] text-white font-bold text-[14px] hover:bg-[#007BB5] transition-colors cursor-pointer shadow-lg shadow-[#0094DA]/20"
+                  className="flex-1 py-3 rounded-xl bg-[#0094DA] text-white font-bold text-[14px] hover:bg-[#007BB5] transition-colors cursor-pointer shadow-lg shadow-[#0094DA]/20 flex items-center justify-center gap-2 disabled:opacity-50"
                 >
-                  {modalMode === "add" ? "Submit" : "Save"}
+                  {(isCreating || isUpdating) ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : modalMode === "add" ? (
+                    "Submit"
+                  ) : (
+                    "Save"
+                  )}
                 </button>
               </div>
             </motion.div>
@@ -256,14 +271,14 @@ export default function FaqSettings() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setDeleteConfirmId(null)}
+              onClick={() => !isDeleting && setDeleteConfirmId(null)}
               className="absolute inset-0 bg-black/30 backdrop-blur-sm cursor-pointer"
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 16 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 16 }}
-              className="relative bg-white rounded-[20px] shadow-2xl w-full max-w-sm border border-gray-100 p-8 text-center"
+              className="relative bg-white rounded-[20px] shadow-2xl w-full max-w-sm border border-gray-100 p-8 text-center z-10"
             >
               <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
                 <Trash2 className="w-7 h-7 text-[#E11D48]" strokeWidth={2} />
@@ -272,16 +287,18 @@ export default function FaqSettings() {
               <p className="text-[13px] text-gray-400 font-medium mb-6">This action cannot be undone. The FAQ will be permanently removed.</p>
               <div className="flex gap-3">
                 <button
+                  disabled={isDeleting}
                   onClick={() => setDeleteConfirmId(null)}
-                  className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-700 font-bold text-[14px] hover:bg-gray-200 transition-colors cursor-pointer"
+                  className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-700 font-bold text-[14px] hover:bg-gray-200 transition-colors cursor-pointer disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
+                  disabled={isDeleting}
                   onClick={() => handleDelete(deleteConfirmId)}
-                  className="flex-1 py-3 rounded-xl bg-[#E11D48] text-white font-bold text-[14px] hover:bg-[#BE123C] transition-colors cursor-pointer"
+                  className="flex-1 py-3 rounded-xl bg-[#E11D48] text-white font-bold text-[14px] hover:bg-[#BE123C] transition-colors cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
                 >
-                  Delete
+                  {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Delete"}
                 </button>
               </div>
             </motion.div>

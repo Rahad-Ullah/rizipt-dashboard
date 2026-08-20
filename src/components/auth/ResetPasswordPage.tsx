@@ -36,7 +36,7 @@ export default function ResetPasswordPage() {
   });
   const router = useRouter();
   const searchParams = useSearchParams();
-  const forgetToken = searchParams.get("forgetOtpMatchToken") || '';
+  const forgetToken = searchParams.get("token") || searchParams.get("resetToken") || searchParams.get("forgetOtpMatchToken") || '';
   const [resetPassword, { isLoading }] = useResetPasswordMutation();
 
   const validatePassword = (password: string): string => {

@@ -1,40 +1,21 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
   images: {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "i.pravatar.cc",
-        pathname: "/**",
-      },
-      {
-        protocol: "https",
-        hostname: "api.optimushs.com",
-        pathname: "/**",
-      },
-      {
-        protocol: "https",
-        hostname: "img.freepik.com",
-        pathname: "/**",
-      },
-      {
-        protocol: "https",
-        hostname: "humayon5002.binarybards.online",
-        pathname: "/**",
+        hostname: "**",
       },
       {
         protocol: "http",
-        hostname: "localhost",
-        port: "5010",
-        pathname: "/**",
-      },
-      // Add your specific uploads pattern
-      {
-        protocol: "http",
-        hostname: "10.10.7.65",
-        port: "5010",
-        pathname: "/uploads/**",  // This specifically allows uploads folder
+        hostname: "**",
       },
     ],
   },

@@ -1,11 +1,22 @@
 export const saveToken = (token) => {
-  localStorage.setItem("PharmacyAdmin", token);
+  if (typeof window !== "undefined") {
+    localStorage.setItem("PharmacyAdmin", token);
+    document.cookie = `rizipt-admin-token=${token}; path=/; max-age=864000; SameSite=Lax`;
+    document.cookie = `PharmacyAdmin=${token}; path=/; max-age=864000; SameSite=Lax`;
+  }
 };
 
 export const getToken = () => {
-  return localStorage.getItem("PharmacyAdmin");
+  if (typeof window !== "undefined") {
+    return localStorage.getItem("PharmacyAdmin");
+  }
+  return null;
 };
 
 export const removeToken = () => {
-  localStorage.removeItem("PharmacyAdmin");
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("PharmacyAdmin");
+    document.cookie = "rizipt-admin-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    document.cookie = "PharmacyAdmin=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  }
 };

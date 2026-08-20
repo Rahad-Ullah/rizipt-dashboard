@@ -14,46 +14,69 @@ import { FormEvent, useState } from 'react';
 import toast from 'react-hot-toast';
 
 import { motion } from 'framer-motion';
+import { useForgotEmailOTPCheckMutation, useResendPasswordMutation } from '@/features/auth/authApi';
 
 export default function VerifyEmail() {
   const [otp, setOtp] = useState<string>('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [isResending, setIsResending] = useState(false);
 
   const router = useRouter();
   const searchParams = useSearchParams();
   const email = searchParams.get('email');
 
+  const [verifyOTP, { isLoading }] = useForgotEmailOTPCheckMutation();
+  const [resendOTP, { isLoading: isResending }] = useResendPasswordMutation();
+
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (otp.length !== 6) {
-      toast.error('Please enter the complete 6-digit code');
+    if (!otp || otp.trim().length === 0) {
+      toast.error('Please enter the verification code');
       return;
     }
 
-    setIsLoading(true);
+    if (!email) {
+      toast.error('Email parameter missing. Please request a new OTP.');
+      return;
+    }
 
-    // Simulate API delay
-    setTimeout(() => {
-      setIsLoading(false);
-      toast.success('Email verified successfully!');
+    const oneTimeCode = Number(otp);
+    if (isNaN(oneTimeCode)) {
+      toast.error('Invalid OTP code');
+      return;
+    }
 
-      // Redirect to Reset Password
-      setTimeout(() => {
-        router.push('/auth/reset-password');
-      }, 1000);
-    }, 1500);
+    try {
+      const res = await verifyOTP({ email, oneTimeCode }).unwrap();
+      if (res?.success) {
+        toast.success(res?.message || 'Verification Successful!');
+        const resetToken = res?.data?.resetToken || res?.data;
+        setTimeout(() => {
+          router.push(`/auth/reset-password?token=${encodeURIComponent(resetToken)}&email=${encodeURIComponent(email)}`);
+        }, 1000);
+      } else {
+        toast.error(res?.message || 'Verification failed!');
+      }
+    } catch (error: any) {
+      toast.error(error?.data?.message || error?.message || 'Invalid or expired OTP code.');
+    }
   };
 
-  const handleResend = () => {
-    setIsResending(true);
-    // Simulate resend
-    setTimeout(() => {
-      setIsResending(false);
-      toast.success('Verification code resent!');
-    }, 2000);
-  }
+  const handleResend = async () => {
+    if (!email) {
+      toast.error('Email is missing');
+      return;
+    }
+    try {
+      const res = await resendOTP({ email }).unwrap();
+      if (res?.success) {
+        toast.success(res?.message || 'Please check your email. We have sent you a one-time passcode (OTP).');
+      } else {
+        toast.error(res?.message || 'Failed to resend OTP.');
+      }
+    } catch (error: any) {
+      toast.error(error?.data?.message || error?.message || 'Failed to resend OTP.');
+    }
+  };
 
   return (
     <div className="flex min-h-screen bg-[#DFDFDF] font-sans">
@@ -101,7 +124,7 @@ export default function VerifyEmail() {
 
             <div className="w-full flex justify-center mb-4">
               <InputOTP
-                maxLength={6}
+                maxLength={4}
                 value={otp}
                 onChange={(value) => setOtp(value)}
               >
@@ -110,15 +133,13 @@ export default function VerifyEmail() {
                   <InputOTPSlot index={1} className="w-11 h-12 sm:w-12 sm:h-14 border-gray-300 rounded-md text-lg bg-transparent focus-visible:ring-1 focus-visible:bg-white focus-visible:ring-[#0094DA]" />
                   <InputOTPSlot index={2} className="w-11 h-12 sm:w-12 sm:h-14 border-gray-300 rounded-md text-lg bg-transparent focus-visible:ring-1 focus-visible:bg-white focus-visible:ring-[#0094DA]" />
                   <InputOTPSlot index={3} className="w-11 h-12 sm:w-12 sm:h-14 border-gray-300 rounded-md text-lg bg-transparent focus-visible:ring-1 focus-visible:bg-white focus-visible:ring-[#0094DA]" />
-                  <InputOTPSlot index={4} className="w-11 h-12 sm:w-12 sm:h-14 border-gray-300 rounded-md text-lg bg-transparent focus-visible:ring-1 focus-visible:bg-white focus-visible:ring-[#0094DA]" />
-                  <InputOTPSlot index={5} className="w-11 h-12 sm:w-12 sm:h-14 border-gray-300 rounded-md text-lg bg-transparent focus-visible:ring-1 focus-visible:bg-white focus-visible:ring-[#0094DA]" />
                 </InputOTPGroup>
               </InputOTP>
             </div>
 
             <Button
               type="submit"
-              disabled={isLoading || otp.length !== 6}
+              disabled={isLoading || !otp || otp.trim().length === 0}
               className="w-full h-12 mt-2 bg-[#00A3FF] hover:bg-[#0094DA] text-white rounded-lg text-[16px] font-semibold transition-all shadow-md hover:shadow-lg active:scale-[0.98]"
             >
               {isLoading ? 'Verifying...' : 'Verify Code'}

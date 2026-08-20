@@ -4,15 +4,43 @@ import { Card, CardContent } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import { Users, Store, ReceiptText, Tag } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const stats = [
-  { title: "TOTAL USERS", value: "12.4K", icon: Users, progress: 65, color: "bg-[#0094DA]" },
-  { title: "TOTAL MERCHANTS", value: "450", icon: Store, progress: 40, color: "bg-[#0094DA]" },
-  { title: "SCANNED RECEIPTS", value: "85.2K", icon: ReceiptText, progress: 85, color: "bg-[#0094DA]" },
-  { title: "ACTIVE OFFERS", value: "120", icon: Tag, progress: 25, color: "bg-[#EAB308]" },
-];
+import { useGetAllQuery } from "@/features/overview/overviewApi";
 
 export default function CardStates() {
+  const { data: overviewRes, isLoading } = useGetAllQuery(undefined);
+  const data = overviewRes?.data;
+
+  const stats = [
+    {
+      title: "TOTAL USERS",
+      value: data?.totalUsers !== undefined ? data.totalUsers.toLocaleString() : "0",
+      icon: Users,
+      progress: Math.min(((data?.totalUsers || 0) / 100) * 100, 100) || 10,
+      color: "bg-[#0094DA]",
+    },
+    {
+      title: "TOTAL MERCHANTS",
+      value: data?.totalMerchants !== undefined ? data.totalMerchants.toLocaleString() : "0",
+      icon: Store,
+      progress: Math.min(((data?.totalMerchants || 0) / 50) * 100, 100) || 10,
+      color: "bg-[#0094DA]",
+    },
+    {
+      title: "SCANNED RECEIPTS",
+      value: data?.totalReceipts !== undefined ? data.totalReceipts.toLocaleString() : "0",
+      icon: ReceiptText,
+      progress: Math.min(((data?.totalReceipts || 0) / 500) * 100, 100) || 10,
+      color: "bg-[#0094DA]",
+    },
+    {
+      title: "ACTIVE OFFERS",
+      value: (data?.activeCoupons ?? data?.totalCoupons) !== undefined ? (data?.activeCoupons ?? data?.totalCoupons).toLocaleString() : "0",
+      icon: Tag,
+      progress: Math.min((((data?.activeCoupons ?? data?.totalCoupons) || 0) / 50) * 100, 100) || 10,
+      color: "bg-[#EAB308]",
+    },
+  ];
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
       {stats.map((stat, index) => (
@@ -31,9 +59,13 @@ export default function CardStates() {
                 <p className="text-[11px] font-bold text-gray-500 tracking-wider">
                    {stat.title}
                 </p>
-                <p className="text-3xl font-bold text-[#111827]">
-                   {stat.value}
-                </p>
+                {isLoading ? (
+                  <div className="h-9 w-20 bg-gray-200 animate-pulse rounded-md my-1" />
+                ) : (
+                  <p className="text-3xl font-bold text-[#111827]">
+                     {stat.value}
+                  </p>
+                )}
               </div>
 
               {/* Progress Bar */}
@@ -41,7 +73,7 @@ export default function CardStates() {
                 <motion.div 
                   className={cn("h-full rounded-full", stat.color)}
                   initial={{ width: 0 }}
-                  animate={{ width: `${stat.progress}%` }}
+                  animate={{ width: isLoading ? "0%" : `${Math.max(stat.progress, 5)}%` }}
                   transition={{ duration: 1, delay: 0.2 + (index * 0.1) }}
                 />
               </div>

@@ -12,17 +12,20 @@ import toast from 'react-hot-toast';
 
 import { motion } from 'framer-motion';
 
+import { useResetPasswordMutation } from '@/features/auth/authApi';
+
 function ResetPasswordContent() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ password?: string; confirmPassword?: string }>({});
 
   const router = useRouter();
   const searchParams = useSearchParams();
-  console.log(searchParams)
+  const token = searchParams.get('token') || searchParams.get('resetToken') || searchParams.get('forgetOtpMatchToken') || '';
+
+  const [resetPassword, { isLoading }] = useResetPasswordMutation();
 
   const validate = () => {
     const newErrors: { password?: string; confirmPassword?: string } = {};
@@ -50,18 +53,29 @@ function ResetPasswordContent() {
       return;
     }
 
-    setIsLoading(true);
+    if (!token) {
+      toast.error('Reset token is missing or expired. Please verify OTP again.');
+      return;
+    }
 
-    // Simulate API delay
-    setTimeout(() => {
-      setIsLoading(false);
-      toast.success('Password reset successfully!');
+    try {
+      const res = await resetPassword({
+        token,
+        newPassword: password,
+        confirmPassword,
+      }).unwrap();
 
-      // Redirect to login
-      setTimeout(() => {
-        router.push('/auth/login');
-      }, 1500);
-    }, 1500);
+      if (res?.success) {
+        toast.success(res?.message || 'Your password has been successfully reset.');
+        setTimeout(() => {
+          router.push('/auth/login');
+        }, 1000);
+      } else {
+        toast.error(res?.message || 'Password reset failed!');
+      }
+    } catch (error: any) {
+      toast.error(error?.data?.message || error?.message || 'Password reset failed!');
+    }
   };
 
   return (

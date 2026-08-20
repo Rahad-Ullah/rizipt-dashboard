@@ -12,14 +12,19 @@ import { useRouter } from 'next/navigation';
 import { FormEvent, useState } from 'react';
 import toast from 'react-hot-toast';
 
+import { useDispatch } from 'react-redux';
+import { useLoginMutation } from '@/features/auth/authApi';
+import { setToken } from '@/features/auth/authSlice';
+
 export default function LoginPage() {
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [showPassword, setShowPassword] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
 
   const router = useRouter();
+  const dispatch = useDispatch();
+  const [login, { isLoading }] = useLoginMutation();
 
   const validate = () => {
     const newErrors: { email?: string; password?: string } = {};
@@ -47,14 +52,21 @@ export default function LoginPage() {
       return;
     }
 
-    setIsLoading(true);
-
-    // Simulate login delay
-    setTimeout(() => {
-      setIsLoading(false);
-      toast.success('Login successful!');
-      router.push('/');
-    }, 1500);
+    try {
+      const res = await login({ email, password }).unwrap();
+      if (res?.success) {
+        const accessToken = res?.data?.accessToken;
+        if (accessToken) {
+          dispatch(setToken(accessToken));
+        }
+        toast.success(res?.message || 'User logged in successfully.');
+        router.push('/');
+      } else {
+        toast.error(res?.message || 'Login failed!');
+      }
+    } catch (error: any) {
+      toast.error(error?.data?.message || error?.message || 'Something went wrong during login.');
+    }
   };
 
   return (

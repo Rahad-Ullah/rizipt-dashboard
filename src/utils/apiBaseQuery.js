@@ -7,13 +7,15 @@ export const baseApi = createApi({
   baseQuery: fetchBaseQuery({
     baseUrl: `${baseURL}/api/v1`,
     prepareHeaders: (headers) => {
-      const token = getToken();
-      if (token) {
-        headers.set("Authorization", `Bearer ${token}`);
+      if (!headers.has("Authorization")) {
+        const token = getToken();
+        if (token) {
+          headers.set("Authorization", `Bearer ${token}`);
+        }
       }
       return headers;
     },
   }),
   endpoints: () => ({}),
-  tagTypes: ["Driver", "investors", "pharmacyz", "pharmacy", "zone", "otherBusiness", "zip"],
+  tagTypes: ["Overview", "Users", "Offers", "redeem", "Receipts", "Faq", "settings", "profile", "notification"],
 });

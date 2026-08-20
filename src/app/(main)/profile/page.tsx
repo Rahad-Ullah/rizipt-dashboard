@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,111 +15,185 @@ import {
   Lock,
   Eye,
   EyeOff,
+  Loader2,
+  Globe,
 } from "lucide-react";
+import {
+  useGetMyProfileQuery,
+  useUpdateMyProfileMutation,
+  useChangeMyPasswordMutation,
+  useUploadImageMutation,
+} from "@/features/profile/profileApi";
 
 export default function ProfilePage() {
-  const [formData, setFormData] = useState({
-    firstName: "Rasel",
-    lastName: "Parvez",
-    email: "rasel.parvez@example.com",
-    phone: "+880 1712 345678",
-    address: "House 12, Road 5, Dhanmondi, Dhaka",
-    oldPassword: "",
-    newPassword: "",
-  });
+  // RTK Query Hooks
+  const { data: profileRes, isLoading, isFetching } = useGetMyProfileQuery(undefined);
+  const [updateMyProfile, { isLoading: isUpdatingProfile }] = useUpdateMyProfileMutation();
+  const [changeMyPassword, { isLoading: isUpdatingPassword }] = useChangeMyPasswordMutation();
+  const [uploadImage, { isLoading: isUploadingImage }] = useUploadImageMutation();
 
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [showOldPassword, setShowOldPassword] = useState(false);
+  const profile = profileRes?.data;
+
+  // Profile Form State
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [countryCode, setCountryCode] = useState("+1");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [address, setAddress] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+
+  // Password Form State
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
-  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors((prev) => {
-        const newErrs = { ...prev };
-        delete newErrs[field];
-        return newErrs;
-      });
+  // Sync profile data when fetched
+  useEffect(() => {
+    if (profile) {
+      setFirstName(profile.firstName || "");
+      setLastName(profile.lastName || "");
+      setEmail(profile.email || "");
+      setCountryCode(profile.phone?.countryCode || "+1");
+      setPhoneNumber(profile.phone?.number || "");
+      setAddress(profile.address || "");
+      setImageUrl(profile.image || "");
     }
-  };
+  }, [profile]);
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setProfileImage(reader.result as string);
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("image", file);
+
+    const toastId = toast.loading("Uploading profile image...");
+    try {
+      const res = await uploadImage(formData).unwrap();
+      const uploadedUrl = res?.data?.images?.[0];
+
+      if (uploadedUrl) {
+        setImageUrl(uploadedUrl);
+        toast.success(res?.message || "File uploaded successfully", { id: toastId });
+      } else {
+        toast.error("Could not retrieve image URL from upload response", { id: toastId });
+      }
+    } catch (error: any) {
+      toast.error(error?.data?.message || error?.message || "Failed to upload image", { id: toastId });
+    }
+  };
+
+  const isValidUrl = (urlStr: string) => {
+    return typeof urlStr === "string" && (urlStr.startsWith("http://") || urlStr.startsWith("https://"));
+  };
+
+  const handleUpdateProfile = async () => {
+    if (!firstName.trim() || !lastName.trim()) {
+      toast.error("First name and last name are required");
+      return;
+    }
+
+    try {
+      const payload: Record<string, any> = {
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        phone: {
+          countryCode: countryCode.trim() || "+1",
+          number: phoneNumber.trim(),
+        },
+        address: address.trim(),
+        location: profile?.location || {
+          type: "Point",
+          coordinates: [-122.4194, 37.7749],
+        },
+        isNotificationEnabled: profile?.isNotificationEnabled ?? true,
       };
-      reader.readAsDataURL(file);
+
+      if (isValidUrl(imageUrl)) {
+        payload.image = imageUrl;
+      }
+
+      const res = await updateMyProfile(payload).unwrap();
+      toast.success(res?.message || "Profile updated successfully!");
+    } catch (error: any) {
+      toast.error(error?.data?.message || error?.message || "Failed to update profile");
     }
   };
 
-  const validateProfile = () => {
-    const newErrors: Record<string, string> = {};
-    if (!formData.firstName) newErrors.firstName = "First name is required";
-    if (!formData.lastName) newErrors.lastName = "Last name is required";
-    if (!formData.email) newErrors.email = "Email is required";
-    else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = "Invalid email format";
-    if (!formData.phone) newErrors.phone = "Phone number is required";
-    if (!formData.address) newErrors.address = "Address is required";
+  const handleUpdatePassword = async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast.error("Please fill in all password fields");
+      return;
+    }
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+    if (newPassword !== confirmPassword) {
+      toast.error("New password and confirm password do not match");
+      return;
+    }
 
-  const validatePassword = () => {
-    const newErrors: Record<string, string> = {};
-    if (!formData.oldPassword) newErrors.oldPassword = "Old password is required";
-    if (!formData.newPassword) newErrors.newPassword = "New password is required";
-    else if (formData.newPassword.length < 6) newErrors.newPassword = "Password must be at least 6 characters";
+    try {
+      const payload = {
+        currentPassword,
+        newPassword,
+        confirmPassword,
+      };
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleUpdateProfile = () => {
-    if (validateProfile()) {
-      toast.success("Profile updated successfully");
-    } else {
-      toast.error("Please fill all required profile fields correctly");
+      const res = await changeMyPassword(payload).unwrap();
+      toast.success(res?.message || "Password changed successfully!");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error: any) {
+      toast.error(error?.data?.message || error?.message || "Failed to change password");
     }
   };
 
-  const handleUpdatePassword = () => {
-    if (validatePassword()) {
-      toast.success("Password updated successfully");
-      setFormData(prev => ({ ...prev, oldPassword: "", newPassword: "" }));
-    } else {
-      toast.error("Please fill all required password fields correctly");
-    }
-  };
+  const userInitials = `${firstName ? firstName[0] : "A"}${lastName ? lastName[0] : "D"}`.toUpperCase();
 
   return (
-    <div className="container mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="container mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700 relative">
+      {(isLoading || isFetching) && (
+        <div className="absolute inset-0 bg-white/60 backdrop-blur-xs flex items-center justify-center z-30 min-h-[400px] rounded-2xl">
+          <div className="flex flex-col items-center gap-2">
+            <Loader2 className="w-8 h-8 text-[#0094DA] animate-spin" />
+            <p className="text-xs font-semibold text-gray-500">Loading profile data...</p>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-1 mb-8 sm:mb-10 pt-1 sm:pt-0">
-        <h1 className="text-2xl sm:text-3xl font-semibold text-[#2C2E33]">My Profile</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-[#111827]">My Profile</h1>
         <p className="text-sm sm:text-base text-gray-500 font-normal">Manage your account information and security settings.</p>
       </div>
 
       <div className="space-y-6 sm:space-y-8">
         {/* Profile Info Section */}
-        <section className="bg-white rounded-xl sm:rounded-2xl p-5 sm:p-8 border border-gray-100 space-y-8">
+        <section className="bg-white rounded-xl sm:rounded-2xl p-5 sm:p-8 border border-gray-100 space-y-8 shadow-sm">
           <div className="flex flex-col sm:flex-row gap-6 sm:gap-8 items-center sm:items-center">
             {/* Avatar Upload */}
             <div className="relative group shrink-0">
-              <Avatar className="w-28 h-28 sm:w-32 sm:h-32 border-4 border-white shadow-xl">
-                <AvatarImage src={profileImage || ""} />
-                <AvatarFallback className="bg-[#F1DED6] text-[#0094DA] text-2xl sm:text-3xl font-bold">
-                  {formData.firstName[0]}{formData.lastName[0]}
+              <Avatar className="w-28 h-28 sm:w-32 sm:h-32 border-4 border-white shadow-xl bg-gray-100">
+                <AvatarImage src={imageUrl || ""} />
+                <AvatarFallback className="bg-[#0094DA]/10 text-[#0094DA] text-2xl sm:text-3xl font-bold">
+                  {userInitials}
                 </AvatarFallback>
               </Avatar>
               <button
+                disabled={isUploadingImage}
                 onClick={() => fileInputRef.current?.click()}
-                className="absolute bottom-1 right-1 bg-[#0094DA] text-white p-2 sm:p-2.5 rounded-full shadow-lg hover:bg-[#E64200] transition-all transform hover:scale-110 active:scale-95 cursor-pointer"
+                className="absolute bottom-1 right-1 bg-[#0094DA] text-white p-2 sm:p-2.5 rounded-full shadow-lg hover:bg-[#007BB5] transition-all transform hover:scale-110 active:scale-95 cursor-pointer disabled:opacity-50"
               >
-                <Camera className="w-4 h-4 sm:w-5 sm:h-5" />
+                {isUploadingImage ? (
+                  <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
+                ) : (
+                  <Camera className="w-4 h-4 sm:w-5 sm:h-5" />
+                )}
               </button>
               <input
                 type="file"
@@ -131,103 +205,120 @@ export default function ProfilePage() {
             </div>
 
             <div className="space-y-1 text-center sm:text-left">
-              <h2 className="text-xl sm:text-2xl font-semibold text-[#2C2E33]">{formData.firstName} {formData.lastName}</h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-[#111827]">
+                {firstName} {lastName}
+              </h2>
               <p className="text-sm sm:text-base text-gray-500 flex items-center justify-center sm:justify-start gap-2">
-                <Mail className="w-4 h-4" />
-                {formData.email}
+                <Mail className="w-4 h-4 text-gray-400" />
+                {email || "admin@rizipt.com"}
+              </p>
+              <p className="text-xs font-semibold text-[#0094DA] capitalize mt-1">
+                Role: {profile?.role ? profile.role.replace("_", " ") : "Administrator"}
               </p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6 pt-4 border-t border-gray-100">
             <div className="space-y-2">
-              <Label className="text-xs sm:text-sm font-semibold text-gray-700 ml-1">First Name</Label>
+              <Label className="text-xs font-bold text-gray-700 uppercase tracking-wider ml-1">First Name</Label>
               <div className="relative">
                 <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                 <Input
-                  value={formData.firstName}
-                  onChange={(e) => handleChange("firstName", e.target.value)}
-                  className={`pl-11 sm:pl-12 h-12 sm:h-14 bg-gray-50/30 border-gray-100 rounded-lg sm:rounded-xl text-sm sm:text-base focus:bg-white transition-all ${errors.firstName ? "border-red-500 ring-1 ring-red-500" : "focus:ring-[#0094DA]/20 focus:border-[#0094DA]/30"
-                    }`}
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  placeholder="First name"
+                  className="pl-11 sm:pl-12 h-12 bg-gray-50/50 border-gray-200 rounded-xl text-sm sm:text-base focus:bg-white focus:ring-2 focus:ring-[#0094DA]/30 transition-all"
                 />
               </div>
-              {errors.firstName && <p className="text-red-500 text-[10px] sm:text-xs font-medium ml-1 mt-1">{errors.firstName}</p>}
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs sm:text-sm font-semibold text-gray-700 ml-1">Last Name</Label>
+              <Label className="text-xs font-bold text-gray-700 uppercase tracking-wider ml-1">Last Name</Label>
               <div className="relative">
                 <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                 <Input
-                  value={formData.lastName}
-                  onChange={(e) => handleChange("lastName", e.target.value)}
-                  className={`pl-11 sm:pl-12 h-12 sm:h-14 bg-gray-50/30 border-gray-100 rounded-lg sm:rounded-xl text-sm sm:text-base focus:bg-white transition-all ${errors.lastName ? "border-red-500 ring-1 ring-red-500" : "focus:ring-[#0094DA]/20 focus:border-[#0094DA]/30"
-                    }`}
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  placeholder="Last name"
+                  className="pl-11 sm:pl-12 h-12 bg-gray-50/50 border-gray-200 rounded-xl text-sm sm:text-base focus:bg-white focus:ring-2 focus:ring-[#0094DA]/30 transition-all"
                 />
               </div>
-              {errors.lastName && <p className="text-red-500 text-[10px] sm:text-xs font-medium ml-1 mt-1">{errors.lastName}</p>}
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs sm:text-sm font-semibold text-gray-700 ml-1">Email Address</Label>
+              <Label className="text-xs font-bold text-gray-700 uppercase tracking-wider ml-1">Email Address (Read Only)</Label>
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                 <Input
                   type="email"
-                  value={formData.email}
-                  onChange={(e) => handleChange("email", e.target.value)}
-                  className={`pl-11 sm:pl-12 h-12 sm:h-14 bg-gray-50/30 border-gray-100 rounded-lg sm:rounded-xl text-sm sm:text-base focus:bg-white transition-all ${errors.email ? "border-red-500 ring-1 ring-red-500" : "focus:ring-[#0094DA]/20 focus:border-[#0094DA]/30"
-                    }`}
+                  value={email}
+                  disabled
+                  className="pl-11 sm:pl-12 h-12 bg-gray-100 border-gray-200 rounded-xl text-sm sm:text-base text-gray-500 opacity-80 cursor-not-allowed"
                 />
               </div>
-              {errors.email && <p className="text-red-500 text-[10px] sm:text-xs font-medium ml-1 mt-1">{errors.email}</p>}
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs sm:text-sm font-semibold text-gray-700 ml-1">Phone Number</Label>
+              <Label className="text-xs font-bold text-gray-700 uppercase tracking-wider ml-1">Phone Country Code</Label>
               <div className="relative">
-                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+                <Globe className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                 <Input
-                  value={formData.phone}
-                  onChange={(e) => handleChange("phone", e.target.value)}
-                  className={`pl-11 sm:pl-12 h-12 sm:h-14 bg-gray-50/30 border-gray-100 rounded-lg sm:rounded-xl text-sm sm:text-base focus:bg-white transition-all ${errors.phone ? "border-red-500 ring-1 ring-red-500" : "focus:ring-[#0094DA]/20 focus:border-[#0094DA]/30"
-                    }`}
+                  value={countryCode}
+                  onChange={(e) => setCountryCode(e.target.value)}
+                  placeholder="+1"
+                  className="pl-11 sm:pl-12 h-12 bg-gray-50/50 border-gray-200 rounded-xl text-sm sm:text-base focus:bg-white focus:ring-2 focus:ring-[#0094DA]/30 transition-all"
                 />
               </div>
-              {errors.phone && <p className="text-red-500 text-[10px] sm:text-xs font-medium ml-1 mt-1">{errors.phone}</p>}
             </div>
 
             <div className="space-y-2 md:col-span-2">
-              <Label className="text-xs sm:text-sm font-semibold text-gray-700 ml-1">Address</Label>
+              <Label className="text-xs font-bold text-gray-700 uppercase tracking-wider ml-1">Phone Number</Label>
+              <div className="relative">
+                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+                <Input
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  placeholder="Phone number"
+                  className="pl-11 sm:pl-12 h-12 bg-gray-50/50 border-gray-200 rounded-xl text-sm sm:text-base focus:bg-white focus:ring-2 focus:ring-[#0094DA]/30 transition-all"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
+              <Label className="text-xs font-bold text-gray-700 uppercase tracking-wider ml-1">Address</Label>
               <div className="relative">
                 <MapPin className="absolute left-4 top-5 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                 <Textarea
-                  value={formData.address}
-                  onChange={(e) => handleChange("address", e.target.value)}
-                  className={`pl-11 sm:pl-12 pt-4 sm:pt-5 min-h-[100px] bg-gray-50/30 border-gray-100 rounded-lg sm:rounded-xl text-sm sm:text-base focus:bg-white transition-all resize-none ${errors.address ? "border-red-500 ring-1 ring-red-500" : "focus:ring-[#0094DA]/20 focus:border-[#0094DA]/30"
-                    }`}
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Enter full street address"
+                  className="pl-11 sm:pl-12 pt-4 min-h-[90px] bg-gray-50/50 border-gray-200 rounded-xl text-sm sm:text-base focus:bg-white focus:ring-2 focus:ring-[#0094DA]/30 transition-all resize-none"
                 />
               </div>
-              {errors.address && <p className="text-red-500 text-[10px] sm:text-xs font-medium ml-1 mt-1">{errors.address}</p>}
             </div>
           </div>
 
           <div className="flex justify-end pt-2">
             <button
+              disabled={isUpdatingProfile}
               onClick={handleUpdateProfile}
-              className="w-full sm:w-auto bg-[#0094DA] hover:bg-[#E64200] text-white px-8 sm:px-10 h-11 sm:h-12 rounded-lg text-sm sm:text-base font-semibold shadow-lg shadow-orange-100 transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full sm:w-auto bg-[#0094DA] hover:bg-[#007BB5] text-white px-8 sm:px-10 h-11 sm:h-12 rounded-xl text-sm sm:text-base font-bold shadow-lg shadow-[#0094DA]/20 transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
-              Update Profile
+              {isUpdatingProfile ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                "Update Profile"
+              )}
             </button>
           </div>
         </section>
 
         {/* Password Section */}
-        <section className="bg-white rounded-xl sm:rounded-2xl p-5 sm:p-8 border border-gray-100 space-y-6">
+        <section className="bg-white rounded-xl sm:rounded-2xl p-5 sm:p-8 border border-gray-100 space-y-6 shadow-sm">
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <h3 className="text-lg sm:text-xl font-semibold text-[#2C2E33] flex items-center gap-2">
+                <h3 className="text-lg sm:text-xl font-bold text-[#111827] flex items-center gap-2">
                   <Lock className="w-5 h-5 text-[#0094DA]" />
                   Change Password
                 </h3>
@@ -235,41 +326,38 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6 pb-2">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6 pb-2">
               <div className="space-y-2">
-                <Label className="text-xs sm:text-sm font-semibold text-gray-700 ml-1">Old Password</Label>
+                <Label className="text-xs font-bold text-gray-700 uppercase tracking-wider ml-1">Current Password</Label>
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                   <Input
-                    type={showOldPassword ? "text" : "password"}
-                    value={formData.oldPassword}
-                    onChange={(e) => handleChange("oldPassword", e.target.value)}
-                    placeholder="Enter old password"
-                    className={`pl-11 sm:pl-12 pr-12 h-12 sm:h-14 bg-gray-50/30 border-gray-100 rounded-lg sm:rounded-xl text-sm sm:text-base focus:bg-white transition-all ${errors.oldPassword ? "border-red-500 ring-1 ring-red-500" : "focus:ring-[#0094DA]/20 focus:border-[#0094DA]/30"
-                      }`}
+                    type={showCurrentPassword ? "text" : "password"}
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder="Enter current password"
+                    className="pl-11 sm:pl-12 pr-12 h-12 bg-gray-50/50 border-gray-200 rounded-xl text-sm sm:text-base focus:bg-white focus:ring-2 focus:ring-[#0094DA]/30 transition-all"
                   />
                   <button
                     type="button"
-                    onClick={() => setShowOldPassword(!showOldPassword)}
+                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
                     className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
                   >
-                    {showOldPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    {showCurrentPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
                 </div>
-                {errors.oldPassword && <p className="text-red-500 text-[10px] sm:text-xs font-medium ml-1 mt-1">{errors.oldPassword}</p>}
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs sm:text-sm font-semibold text-gray-700 ml-1">New Password</Label>
+                <Label className="text-xs font-bold text-gray-700 uppercase tracking-wider ml-1">New Password</Label>
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                   <Input
                     type={showNewPassword ? "text" : "password"}
-                    value={formData.newPassword}
-                    onChange={(e) => handleChange("newPassword", e.target.value)}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="Enter new password"
-                    className={`pl-11 sm:pl-12 pr-12 h-12 sm:h-14 bg-gray-50/30 border-gray-100 rounded-lg sm:rounded-xl text-sm sm:text-base focus:bg-white transition-all ${errors.newPassword ? "border-red-500 ring-1 ring-red-500" : "focus:ring-[#0094DA]/20 focus:border-[#0094DA]/30"
-                      }`}
+                    className="pl-11 sm:pl-12 pr-12 h-12 bg-gray-50/50 border-gray-200 rounded-xl text-sm sm:text-base focus:bg-white focus:ring-2 focus:ring-[#0094DA]/30 transition-all"
                   />
                   <button
                     type="button"
@@ -279,16 +367,41 @@ export default function ProfilePage() {
                     {showNewPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
                 </div>
-                {errors.newPassword && <p className="text-red-500 text-[10px] sm:text-xs font-medium ml-1 mt-1">{errors.newPassword}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-gray-700 uppercase tracking-wider ml-1">Confirm Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+                  <Input
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Confirm new password"
+                    className="pl-11 sm:pl-12 pr-12 h-12 bg-gray-50/50 border-gray-200 rounded-xl text-sm sm:text-base focus:bg-white focus:ring-2 focus:ring-[#0094DA]/30 transition-all"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                  >
+                    {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
               </div>
             </div>
 
             <div className="flex justify-end pt-2">
               <button
+                disabled={isUpdatingPassword}
                 onClick={handleUpdatePassword}
-                className="w-full sm:w-auto bg-[#0094DA] hover:bg-[#E64200] text-white px-8 sm:px-10 h-11 sm:h-12 rounded-lg text-sm sm:text-base font-semibold shadow-lg shadow-orange-100 transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full sm:w-auto bg-[#0094DA] hover:bg-[#007BB5] text-white px-8 sm:px-10 h-11 sm:h-12 rounded-xl text-sm sm:text-base font-bold shadow-lg shadow-[#0094DA]/20 transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
-                Update Password
+                {isUpdatingPassword ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  "Update Password"
+                )}
               </button>
             </div>
           </div>
