@@ -90,7 +90,7 @@ export default function ReceiptsManagement() {
         </div>
 
         {/* Table Card */}
-        <div className="bg-[#F0F2F5]/50 border border-gray-200/50 rounded-[28px] p-5 shadow-sm">
+        <div className="bg-[#EAECEF] border border-gray-200/50 rounded-[28px] p-5">
           {/* Search & Filter */}
           <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-4 px-2">
             <div className="relative w-full max-w-md flex items-center">
@@ -108,7 +108,7 @@ export default function ReceiptsManagement() {
             </div>
 
             {/* Animated Filter Tabs */}
-            <div className="flex items-center p-1 bg-[#EAECEF] rounded-full shrink-0 relative z-0">
+            <div className="flex items-center p-1 bg-[#E2E4E7] rounded-full shrink-0 relative z-0">
               {(["All", "Draft", "Sent"] as const).map((mode) => (
                 <button
                   key={mode}
@@ -116,9 +116,8 @@ export default function ReceiptsManagement() {
                     setFilterMode(mode);
                     setPage(1);
                   }}
-                  className={`relative px-5 py-1.5 rounded-full text-[12px] font-bold transition-colors cursor-pointer z-10 ${
-                    filterMode === mode ? "text-gray-800" : "text-gray-500 hover:text-gray-700"
-                  }`}
+                  className={`relative px-5 py-1.5  rounded-full text-[12px] font-bold transition-colors cursor-pointer z-10 ${filterMode === mode ? "text-gray-800" : "text-gray-500 hover:text-gray-700"
+                    }`}
                 >
                   {filterMode === mode && (
                     <motion.div
@@ -147,7 +146,7 @@ export default function ReceiptsManagement() {
             <div className="w-full overflow-x-auto">
               <div className="min-w-[850px]">
                 {/* Table Header */}
-                <div className="grid grid-cols-12 bg-[#E6E8EA] px-6 py-4 text-[10px] font-extrabold text-gray-500 tracking-widest uppercase">
+                <div className="grid grid-cols-12 bg-gray-100 px-6 py-4 text-[10px] font-extrabold text-gray-500 tracking-widest uppercase">
                   <div className="col-span-2">Receipt ID</div>
                   <div className="col-span-3">Customer</div>
                   <div className="col-span-3">Merchant</div>
@@ -197,9 +196,8 @@ export default function ReceiptsManagement() {
                         <div className="col-span-1 text-[12px] text-gray-500 font-medium leading-tight">{formatDate(r.createdAt)}</div>
 
                         <div className="col-span-1 flex justify-end">
-                          <span className={`px-2.5 py-1 text-[10px] font-extrabold rounded-lg tracking-wider uppercase capitalize ${
-                            isSent ? "bg-[#D1F4D9] text-[#059669]" : "bg-[#FDF0D5] text-[#D97706]"
-                          }`}>
+                          <span className={`px-2.5 py-1 text-[10px] font-extrabold rounded-lg tracking-wider uppercase capitalize ${isSent ? "bg-[#D1F4D9] text-[#059669]" : "bg-[#FDF0D5] text-[#D97706]"
+                            }`}>
                             {r.status || "draft"}
                           </span>
                         </div>
@@ -211,7 +209,7 @@ export default function ReceiptsManagement() {
             </div>
 
             {/* Pagination */}
-            <div className="bg-[#E6E8EA]/40 px-4 sm:px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-gray-200/50">
+            <div className="bg-gray-100 px-4 sm:px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-gray-200/50">
               <span className="text-[12px] text-gray-500 font-medium text-center sm:text-left">
                 Showing <strong className="font-bold text-gray-700">
                   {pagination.total > 0 ? ((pagination.page - 1) * pagination.limit) + 1 : 0} - {Math.min(pagination.page * pagination.limit, pagination.total)}
@@ -232,11 +230,10 @@ export default function ReceiptsManagement() {
                     <button
                       key={pNum}
                       onClick={() => setPage(pNum)}
-                      className={`w-8 h-8 flex items-center justify-center rounded-full text-[12px] font-bold shadow-sm cursor-pointer ${
-                        page === pNum
-                          ? "bg-[#0094DA] text-white"
-                          : "bg-white text-gray-600 hover:bg-gray-50"
-                      }`}
+                      className={`w-8 h-8 flex items-center justify-center rounded-full text-[12px] font-bold shadow-sm cursor-pointer ${page === pNum
+                        ? "bg-[#0094DA] text-white"
+                        : "bg-white text-gray-600 hover:bg-gray-50"
+                        }`}
                     >
                       {pNum}
                     </button>
@@ -320,9 +317,8 @@ export default function ReceiptsManagement() {
 
               {/* Amount Hero */}
               <div className="text-center py-6 px-5 relative bg-gray-50/50">
-                <span className={`absolute top-4 right-5 text-[10px] font-extrabold tracking-widest px-3 py-1 rounded-full uppercase ${
-                  selectedReceipt.status === "sent" ? "bg-[#D1F4D9] text-[#059669]" : "bg-[#FDF0D5] text-[#D97706]"
-                }`}>
+                <span className={`absolute top-4 right-5 text-[10px] font-extrabold tracking-widest px-3 py-1 rounded-full uppercase ${selectedReceipt.status === "sent" ? "bg-[#D1F4D9] text-[#059669]" : "bg-[#FDF0D5] text-[#D97706]"
+                  }`}>
                   {selectedReceipt.status || "draft"}
                 </span>
                 <p className="text-[32px] font-bold text-gray-900">

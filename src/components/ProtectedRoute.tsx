@@ -2,7 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { ReactNode, useEffect, useState } from "react";
-import { getToken } from "@/utils/storage";
+import { getToken, removeToken } from "@/utils/storage";
+
+import toast from "react-hot-toast";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -15,27 +17,27 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   useEffect(() => {
     const token = getToken();
     if (!token) {
+      removeToken();
       setIsAuthenticated(false);
-      router.replace("/auth/login");
+      toast.error("Session expired, please login again", { id: "session-expired" });
+      router.replace("/auth/login?reason=expired");
     } else {
       setIsAuthenticated(true);
     }
   }, [router]);
 
-  if (isAuthenticated === null) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-gray-50">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#0094DA] border-t-transparent" />
-          <p className="text-sm font-medium text-gray-500">Authenticating...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return null;
-  }
+  // if (isAuthenticated === null || !isAuthenticated) {
+  //   return (
+  //     <div className="flex h-screen w-full items-center justify-center bg-gray-50">
+  //       <div className="flex flex-col items-center gap-3">
+  //         <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#0094DA] border-t-transparent" />
+  //         <p className="text-sm font-medium text-gray-500">
+  //           {isAuthenticated === false ? "Redirecting to Login..." : "Authenticating..."}
+  //         </p>
+  //       </div>
+  //     </div>
+  //   );
+  // }
 
   return <>{children}</>;
 }

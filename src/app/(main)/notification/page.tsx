@@ -33,12 +33,30 @@ interface NotificationItem {
   referenceId?: string;
   isRead: boolean;
   createdAt: string;
-  updatedAt: string;
-  timeAgo?: string;
 }
 
 const filterTabs = ["All", "Unread"] as const;
 type FilterTab = typeof filterTabs[number];
+
+function formatTimeAgo(dateStr: string) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+
+  const now = new Date();
+  const diffInSeconds = Math.floor((now.getTime() - d.getTime()) / 1000);
+
+  if (diffInSeconds < 60) return "Just now";
+  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+  if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
+
+  return d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: d.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
+  });
+}
 
 export default function NotificationPage() {
   const [page, setPage] = useState(1);
@@ -238,7 +256,7 @@ export default function NotificationPage() {
                       </span>
                       <span className="flex items-center gap-1 text-[11px] text-gray-400 font-medium">
                         <Clock className="w-3.5 h-3.5" />
-                        {notif.timeAgo || new Date(notif.createdAt).toLocaleDateString()}
+                        {formatTimeAgo(notif.createdAt)}
                       </span>
                     </div>
                   </div>

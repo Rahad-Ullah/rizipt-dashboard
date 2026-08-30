@@ -37,7 +37,7 @@ export default function MerchantsManagement() {
   const statusParam = filterMode === "All" ? "" : filterMode.toLowerCase();
 
   // Fetch merchants list using usersApi with role="merchant"
-  const { data: merchantsRes, isLoading, isFetching } = useGetAllUsersQuery({
+  const { data: merchantsRes, isLoading } = useGetAllUsersQuery({
     searchTerm: searchQuery,
     role: "merchant",
     status: statusParam,
@@ -162,7 +162,7 @@ export default function MerchantsManagement() {
           </div>
 
           <div className="bg-white rounded-[24px] mt-4 shadow-sm border border-gray-100 overflow-hidden relative">
-            {(isLoading || isFetching) && (
+            {(isLoading) && (
               <div className="absolute inset-0 bg-white/60 backdrop-blur-xs flex items-center justify-center z-30 min-h-[120px]">
                 <div className="flex flex-col items-center gap-2">
                   <Loader2 className="w-8 h-8 text-[#0094DA] animate-spin" />
@@ -174,7 +174,7 @@ export default function MerchantsManagement() {
             <div className="w-full overflow-x-auto">
               <div className="min-w-[900px]">
                 {/* Table Header */}
-                <div className="grid grid-cols-12 bg-[#E6E8EA] px-8 py-4 text-[10px] font-bold text-gray-500 tracking-widest uppercase">
+                <div className="grid grid-cols-12 bg-gray-100 px-8 py-4 text-[10px] font-bold text-gray-500 tracking-widest uppercase">
                   <div className="col-span-4">Business Details</div>
                   <div className="col-span-2">Business Type</div>
                   <div className="col-span-2">Registration Date</div>
@@ -262,7 +262,7 @@ export default function MerchantsManagement() {
             </div>
 
             {/* Pagination footer */}
-            <div className="bg-[#E6E8EA] px-4 sm:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-gray-200/50">
+            <div className="bg-gray-100 px-4 sm:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-gray-200/50">
               <span className="text-[12px] text-gray-500 font-medium text-center sm:text-left">
                 Showing <strong className="font-bold text-gray-700">
                   {pagination.total > 0 ? ((pagination.page - 1) * pagination.limit) + 1 : 0} - {Math.min(pagination.page * pagination.limit, pagination.total)}

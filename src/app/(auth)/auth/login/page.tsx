@@ -9,7 +9,7 @@ import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { FormEvent, useState } from 'react';
+import { FormEvent, useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 
 import { useDispatch } from 'react-redux';
@@ -25,6 +25,12 @@ export default function LoginPage() {
   const router = useRouter();
   const dispatch = useDispatch();
   const [login, { isLoading }] = useLoginMutation();
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.search.includes('reason=expired')) {
+      toast.error('Session expired, please login again', { id: 'session-expired' });
+    }
+  }, []);
 
   const validate = () => {
     const newErrors: { email?: string; password?: string } = {};

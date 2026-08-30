@@ -22,7 +22,7 @@ export default function UsersManagement() {
   const statusParam = filterMode === "All" ? "" : filterMode.toLowerCase();
 
   // Fetch users list
-  const { data: usersRes, isLoading, isFetching } = useGetAllUsersQuery({
+  const { data: usersRes, isLoading } = useGetAllUsersQuery({
     searchTerm: searchQuery,
     role: "user",
     status: statusParam,
@@ -129,9 +129,8 @@ export default function UsersManagement() {
                     setFilterMode(mode);
                     setPage(1);
                   }}
-                  className={`relative px-4 sm:px-6 py-1.5 rounded-full text-[12px] font-bold transition-colors cursor-pointer z-10 whitespace-nowrap ${
-                    filterMode === mode ? "text-gray-800" : "text-gray-500 hover:text-gray-700"
-                  }`}
+                  className={`relative px-4 sm:px-6 py-1.5 rounded-full text-[12px] font-bold transition-colors cursor-pointer z-10 whitespace-nowrap ${filterMode === mode ? "text-gray-800" : "text-gray-500 hover:text-gray-700"
+                    }`}
                 >
                   {filterMode === mode && (
                     <motion.div
@@ -147,7 +146,7 @@ export default function UsersManagement() {
           </div>
 
           <div className="bg-white rounded-[24px] mt-4 shadow-sm border border-gray-100 overflow-hidden relative">
-            {(isLoading || isFetching) && (
+            {(isLoading) && (
               <div className="absolute inset-0 bg-white/60 backdrop-blur-xs flex items-center justify-center z-30 min-h-[120px]">
                 <div className="flex flex-col items-center gap-2">
                   <Loader2 className="w-8 h-8 text-[#0094DA] animate-spin" />
@@ -159,7 +158,7 @@ export default function UsersManagement() {
             <div className="w-full overflow-x-auto">
               <div className="min-w-[800px]">
                 {/* Table Header */}
-                <div className="grid grid-cols-12 bg-[#E6E8EA] px-8 py-4 text-[10px] font-bold text-gray-500 tracking-widest uppercase">
+                <div className="grid grid-cols-12 bg-gray-100 px-8 py-4 text-[10px] font-bold text-gray-500 tracking-widest uppercase">
                   <div className="col-span-4">User Details</div>
                   <div className="col-span-3">Joined Date</div>
                   <div className="col-span-2">UID</div>
@@ -203,9 +202,8 @@ export default function UsersManagement() {
                           {user.uid || "N/A"}
                         </div>
                         <div className="col-span-2">
-                          <span className={`px-3 py-1 text-[11px] font-bold rounded-full capitalize ${
-                            isUserActive ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
-                          }`}>
+                          <span className={`px-3 py-1 text-[11px] font-bold rounded-full capitalize ${isUserActive ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                            }`}>
                             {user.status || "inactive"}
                           </span>
                         </div>
@@ -219,9 +217,8 @@ export default function UsersManagement() {
                           </button>
                           <button
                             onClick={() => setUserToBlock(user)}
-                            className={`transition-colors cursor-pointer ${
-                              isUserActive ? "text-red-400 hover:text-red-600" : "text-emerald-500 hover:text-emerald-700"
-                            }`}
+                            className={`transition-colors cursor-pointer ${isUserActive ? "text-red-400 hover:text-red-600" : "text-emerald-500 hover:text-emerald-700"
+                              }`}
                             title={isUserActive ? "Deactivate / Block User" : "Activate User"}
                           >
                             {isUserActive ? <Ban className="w-5 h-5" strokeWidth={2} /> : <CheckCircle className="w-5 h-5" strokeWidth={2} />}
@@ -235,7 +232,7 @@ export default function UsersManagement() {
             </div>
 
             {/* Pagination footer */}
-            <div className="bg-[#E6E8EA] px-4 sm:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-gray-200/50">
+            <div className="bg-gray-100 px-4 sm:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-gray-200/50">
               <span className="text-[12px] text-gray-500 font-medium text-center sm:text-left">
                 Showing <strong className="font-bold text-gray-700">
                   {pagination.total > 0 ? ((pagination.page - 1) * pagination.limit) + 1 : 0} - {Math.min(pagination.page * pagination.limit, pagination.total)}
@@ -256,11 +253,10 @@ export default function UsersManagement() {
                     <button
                       key={pNum}
                       onClick={() => setPage(pNum)}
-                      className={`w-8 h-8 flex items-center justify-center rounded-full text-[12px] font-bold shadow-sm cursor-pointer ${
-                        page === pNum
-                          ? "bg-[#0094DA] text-white"
-                          : "bg-white text-gray-600 hover:bg-gray-50"
-                      }`}
+                      className={`w-8 h-8 flex items-center justify-center rounded-full text-[12px] font-bold shadow-sm cursor-pointer ${page === pNum
+                        ? "bg-[#0094DA] text-white"
+                        : "bg-white text-gray-600 hover:bg-gray-50"
+                        }`}
                     >
                       {pNum}
                     </button>
@@ -320,11 +316,10 @@ export default function UsersManagement() {
                               {singleUser.firstName} {singleUser.lastName}
                             </span>
                             <span
-                              className={`px-2.5 py-0.5 leading-tight text-[10px] font-bold rounded-full capitalize ${
-                                singleUser.status === "active"
-                                  ? "bg-green-200/60 text-green-800"
-                                  : "bg-red-200/60 text-red-800"
-                              }`}
+                              className={`px-2.5 py-0.5 leading-tight text-[10px] font-bold rounded-full capitalize ${singleUser.status === "active"
+                                ? "bg-green-200/60 text-green-800"
+                                : "bg-red-200/60 text-red-800"
+                                }`}
                             >
                               {singleUser.status}
                             </span>
@@ -378,11 +373,10 @@ export default function UsersManagement() {
                         onClick={() => {
                           setUserToBlock(singleUser);
                         }}
-                        className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl font-bold text-[13px] transition-colors shadow-sm cursor-pointer ${
-                          singleUser.status === "active"
-                            ? "bg-[#D92D20] hover:bg-[#B42217] text-white"
-                            : "bg-emerald-600 hover:bg-emerald-700 text-white"
-                        }`}
+                        className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl font-bold text-[13px] transition-colors shadow-sm cursor-pointer ${singleUser.status === "active"
+                          ? "bg-[#D92D20] hover:bg-[#B42217] text-white"
+                          : "bg-emerald-600 hover:bg-emerald-700 text-white"
+                          }`}
                       >
                         {singleUser.status === "active" ? (
                           <>
@@ -423,12 +417,11 @@ export default function UsersManagement() {
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
                 className="relative bg-white rounded-[24px] shadow-2xl w-full max-w-md overflow-hidden p-8 flex flex-col items-center text-center border border-gray-100 z-10"
               >
-                <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-6 ${
-                  userToBlock.status === "active" ? "bg-red-50 text-[#D92D20]" : "bg-emerald-50 text-emerald-600"
-                }`}>
+                <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-6 ${userToBlock.status === "active" ? "bg-red-50 text-[#D92D20]" : "bg-emerald-50 text-emerald-600"
+                  }`}>
                   {userToBlock.status === "active" ? <ShieldAlert className="w-8 h-8" /> : <CheckCircle className="w-8 h-8" />}
                 </div>
-                
+
                 <h3 className="text-[20px] font-bold text-gray-900 mb-2">
                   {userToBlock.status === "active" ? "Deactivate User?" : "Activate User?"}
                 </h3>
@@ -451,11 +444,10 @@ export default function UsersManagement() {
                   <button
                     disabled={isUpdatingStatus}
                     onClick={handleToggleStatus}
-                    className={`flex-1 px-6 py-3 rounded-xl text-white font-bold text-[14px] transition-colors shadow-lg flex items-center justify-center gap-2 cursor-pointer ${
-                      userToBlock.status === "active"
-                        ? "bg-[#D92D20] hover:bg-[#B42217] shadow-red-200"
-                        : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200"
-                    }`}
+                    className={`flex-1 px-6 py-3 rounded-xl text-white font-bold text-[14px] transition-colors shadow-lg flex items-center justify-center gap-2 cursor-pointer ${userToBlock.status === "active"
+                      ? "bg-[#D92D20] hover:bg-[#B42217] shadow-red-200"
+                      : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200"
+                      }`}
                   >
                     {isUpdatingStatus ? (
                       <Loader2 className="w-5 h-5 animate-spin" />
