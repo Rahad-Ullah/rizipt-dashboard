@@ -18,10 +18,31 @@ export const settingsApi = baseApi.injectEndpoints({
             }),
             providesTags: ["settings"],
         }),
+
+        addAppLinK: builder.mutation({
+            query: (data) => ({
+                url: "/settings",
+                method: "POST",
+                body: data,
+            }),
+            invalidatesTags: ["settings"],
+        }),
+
+        getAppLink: builder.query({
+            query: () => ({
+                url: "/settings",
+                method: "GET",
+            }),
+            providesTags: ["settings"],
+        }),
+
+
     }),
 });
 
 export const {
     useCreateSettingsMutation,
     useGetSettingsQuery,
+    useAddAppLinKMutation,
+    useGetAppLinkQuery,
 } = settingsApi;
